@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>E.R.A.</title>
+<style>
+  :root {
+    --bg: #000;
+    --ink: #e6e6e6;
+    --ink-dim: #8a8a8a;
+    --ink-faint: #4a4a4a;
+    --line: #1e1e1e;
+    --panel: #0a0a0a;
+    --bar: 56px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
+  body {
+    font-family: "Inter", "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", system-ui, sans-serif;
+    font-weight: 300; letter-spacing: .01em;
+    display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 1px solid var(--ink-dim); outline-offset: 3px; }
+
+  .top { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 0; height: var(--bar); }
+  .icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: var(--ink-dim); }
+  .icon-btn:active { color: var(--ink); }
+  .icon-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  .chip { font-size: 13px; color: var(--ink-dim); padding: 8px 12px; border: 1px solid var(--line); border-radius: 20px; }
+
+  .stage { position: relative; flex: 1 1 auto; min-height: 180px; }
+  #pulsar { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  .status { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: 14px; color: var(--ink-dim); min-height: 20px; }
+
+  .reply { flex: 0 1 auto; max-height: 30vh; overflow-y: auto; padding: 4px 22px 10px; font-size: 17px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .reply:empty { display: none; }
+  .reply .you { color: var(--ink-dim); font-size: 15px; margin-bottom: 8px; }
+  .reply .err { color: #fff; border-left: 2px solid #fff; padding-left: 10px; }
+  .reply .src { margin-top: 10px; font-size: 13px; color: var(--ink-dim); }
+  .reply .src a { color: var(--ink-dim); }
+
+  .dock { padding: 8px 14px 14px; display: flex; gap: 10px; align-items: center; }
+  .field { flex: 1; display: flex; align-items: center; border: 1px solid var(--line); border-radius: 26px; background: var(--panel); padding: 0 6px 0 16px; height: 52px; }
+  .field input { flex: 1; min-width: 0; background: none; border: 0; color: var(--ink); font: inherit; font-size: 16px; outline: none; }
+  .field input::placeholder { color: var(--ink-faint); }
+  .mic { width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--ink-faint); display: grid; place-items: center; transition: background .2s, border-color .2s; }
+  .mic svg { width: 22px; height: 22px; stroke: var(--ink); fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  .mic.on { background: #fff; border-color: #fff; }
+  .mic.on svg { stroke: #000; }
+  .mic.muted { opacity: .35; }
+
+  .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: none; z-index: 5; }
+  .sheet.open { display: block; }
+  .sheet-body { position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh; overflow-y: auto; background: var(--panel); border-top: 1px solid var(--line); border-radius: 20px 20px 0 0; padding: 18px 20px calc(24px + env(safe-area-inset-bottom)); }
+  .sheet h2 { font-size: 18px; font-weight: 400; margin: 0 0 14px; display: flex; justify-content: space-between; align-items: center; }
+  .row { margin: 0 0 16px; }
+  .row label { display: block; font-size: 14px; color: var(--ink-dim); margin-bottom: 6px; }
+  .row input[type=text], .row input[type=password], .row select { width: 100%; height: 46px; background: #000; color: var(--ink); border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; font: inherit; font-size: 15px; }
+  .row input[type=range] { width: 100%; accent-color: #fff; }
+  .row .hint { font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; line-height: 1.45; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .seg button { flex: 1; height: 44px; font-size: 15px; color: var(--ink-dim); }
+  .seg button.sel { background: #fff; color: #000; }
+  .switch { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-size: 15px; }
+  .switch input { width: 44px; height: 24px; accent-color: #fff; }
+  .btn { height: 46px; padding: 0 18px; border: 1px solid var(--ink-faint); border-radius: 23px; font-size: 15px; }
+  .btn.solid { background: #fff; color: #000; border-color: #fff; }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .hist-item { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .hist-item b { font-weight: 400; color: var(--ink-dim); display: block; font-size: 13px; }
+
+  @media (prefers-reduced-motion: reduce) { .mic { transition: none; } }
+  @media (min-width: 700px) { body { max-width: 520px; margin: 0 auto; } }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <button class="icon-btn" id="btnHistory" aria-label="Conversation history">
+    <svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+  </button>
+  <div class="chip" id="langChip">Auto</div>
+  <button class="icon-btn" id="btnSettings" aria-label="Settings">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+  </button>
+</div>
+
+<div class="stage">
+  <canvas id="pulsar" aria-label="E.R.A. status indicator"></canvas>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+</div>
+
+<div class="reply" id="reply" aria-live="polite"></div>
+
+<form class="dock" id="form" autocomplete="off">
+  <div class="field">
+    <input id="text" type="text" placeholder="Type or tap the mic" enterkeyhint="send" aria-label="Message">
+    <button class="icon-btn" type="submit" aria-label="Send">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+  <button class="mic" id="mic" type="button" aria-label="Speak">
+    <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+  </button>
+</form>
+
+<!-- Settings -->
+<div class="sheet" id="sheetSettings">
+  <div class="sheet-body">
+    <h2>Settings <button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+
+    <div class="row">
+      <label for="worker">Backend address (Cloudflare Worker URL)</label>
+      <input id="worker" type="text" inputmode="url" placeholder="https://era-api.yourname.workers.dev">
+    </div>
+    <div class="row">
+      <label for="token">Access token</label>
+      <input id="token" type="password" placeholder="The ERA_TOKEN you set on the server">
+      <div class="hint">Saved only on this phone. The AI key itself never reaches the app.</div>
+    </div>
+
+    <div class="row">
+      <label for="lang">Language</label>
+      <select id="lang"></select>
+      <div class="hint" id="langHint"></div>
+    </div>
+
+    <div class="row">
+      <label>Voice style</label>
+      <div class="seg" id="style">
+        <button type="button" data-v="deep">Deep</button>
+        <button type="button" data-v="natural">Natural</button>
+      </div>
+      <div class="hint">Deep lowers the pitch of your phone's voice. Too low can sound distorted, so adjust to taste.</div>
+    </div>
+    <div class="row">
+      <label for="voice">Voice</label>
+      <select id="voice"></select>
+      <div class="hint">Phone voices come from Android's speech engine. To get more or better voices: Android Settings, Text-to-speech, Google, Install voice data.</div>
+    </div>
+    <div class="row">
+      <label for="rate">Speaking speed <span id="rateVal"></span></label>
+      <input id="rate" type="range" min="0.6" max="1.5" step="0.05">
+    </div>
+    <div class="row">
+      <label for="pitch">Pitch <span id="pitchVal"></span></label>
+      <input id="pitch" type="range" min="0.5" max="1.3" step="0.05">
+    </div>
+    <div class="btns row">
+      <button class="btn" type="button" id="preview">Preview voice</button>
+    </div>
+
+    <div class="switch"><span>Live search for current information</span><input type="checkbox" id="search"></div>
+    <div class="switch"><span>Speak replies aloud</span><input type="checkbox" id="speakOn"></div>
+    <div class="switch"><span>Continuous conversation</span><input type="checkbox" id="continuous"></div>
+    <div class="switch"><span>Microphone enabled</span><input type="checkbox" id="micOn"></div>
+
+    <div class="btns row" style="margin-top:12px">
+      <button class="btn" type="button" id="test">Test connection</button>
+      <button class="btn" type="button" id="clear">Clear history</button>
+    </div>
+    <div class="hint" id="testOut"></div>
+    <div class="hint">Not available in this version: phone control, wake word, offline AI, biometric lock and saved memory.</div>
+  </div>
+</div>
+
+<!-- History -->
+<div class="sheet" id="sheetHistory">
+  <div class="sheet-body">
+    <h2>History <button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+    <div id="histList"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Languages ---------- */
+// stt: speech-recognition locale. tts: speech-synthesis locale. name: sent to the AI.
+// fallback notes are shown honestly in the settings.
+const LANGS = [
+  { id: "auto", label: "Auto-detect", name: "auto", stt: "hi-IN", tts: null, note: "Listens for Hindi or English. Replies in the language you use." },
+  { id: "hi", label: "Hindi", name: "Hindi", stt: "hi-IN", tts: "hi-IN" },
+  { id: "en", label: "English", name: "English", stt: "en-IN", tts: "en-IN" },
+  { id: "raj", label: "Rajasthani", name: "Rajasthani (Devanagari script)", stt: "hi-IN", tts: "hi-IN", note: "No Rajasthani speech engine exists on Android. The AI writes Rajasthani, but listening and speaking use the Hindi engine, so pronunciation will be approximate." },
+  { id: "har", label: "Haryanvi", name: "Haryanvi (Devanagari script)", stt: "hi-IN", tts: "hi-IN", note: "No Haryanvi speech engine exists on Android. Listening and speaking use the Hindi engine, so pronunciation will be approximate." },
+  { id: "pa", label: "Punjabi", name: "Punjabi (Gurmukhi script)", stt: "pa-IN", tts: "pa-IN" },
+  { id: "gu", label: "Gujarati", name: "Gujarati", stt: "gu-IN", tts: "gu-IN" },
+  { id: "mr", label: "Marathi", name: "Marathi", stt: "mr-IN", tts: "mr-IN" },
+  { id: "bn", label: "Bengali", name: "Bengali", stt: "bn-IN", tts: "bn-IN" },
+  { id: "ta", label: "Tamil", name: "Tamil", stt: "ta-IN", tts: "ta-IN" },
+  { id: "te", label: "Telugu", name: "Telugu", stt: "te-IN", tts: "te-IN" },
+  { id: "kn", label: "Kannada", name: "Kannada", stt: "kn-IN", tts: "kn-IN" },
+  { id: "ml", label: "Malayalam", name: "Malayalam", stt: "ml-IN", tts: "ml-IN" },
+  { id: "or", label: "Odia", name: "Odia", stt: "or-IN", tts: "or-IN", note: "Odia voice support on phones is limited. Text may work better than voice." },
+  { id: "as", label: "Assamese", name: "Assamese", stt: "as-IN", tts: "as-IN", note: "Assamese voice support on phones is limited. Text may work better than voice." },
+  { id: "ur", label: "Urdu", name: "Urdu", stt: "ur-IN", tts: "ur-IN" },
+  { id: "ne", label: "Nepali", name: "Nepali", stt: "ne-NP", tts: "ne-NP" },
+  { id: "sa", label: "Sanskrit", name: "Sanskrit (Devanagari script)", stt: "hi-IN", tts: "hi-IN", note: "No Sanskrit speech engine on Android. Listening and speaking use the Hindi engine." },
+  { id: "fr", label: "French", name: "French", stt: "fr-FR", tts: "fr-FR" },
+  { id: "es", label: "Spanish", name: "Spanish", stt: "es-ES", tts: "es-ES" },
+  { id: "ar", label: "Arabic", name: "Arabic", stt: "ar-SA", tts: "ar-SA" },
+  { id: "de", label: "German", name: "German", stt: "de-DE", tts: "de-DE" },
+  { id: "ja", label: "Japanese", name: "Japanese", stt: "ja-JP", tts: "ja-JP" },
+];
+const langById = (id) => LANGS.find((l) => l.id === id) || LANGS[0];
+
+// Used in Auto mode: choose the speaking voice from the script of the reply.
+function detectTtsLang(text) {
+  const t = text.slice(0, 200);
+  const ranges = [
+    [/[\u0900-\u097F]/, "hi-IN"], [/[\u0980-\u09FF]/, "bn-IN"], [/[\u0A00-\u0A7F]/, "pa-IN"],
+    [/[\u0A80-\u0AFF]/, "gu-IN"], [/[\u0B00-\u0B7F]/, "or-IN"], [/[\u0B80-\u0BFF]/, "ta-IN"],
+    [/[\u0C00-\u0C7F]/, "te-IN"], [/[\u0C80-\u0CFF]/, "kn-IN"], [/[\u0D00-\u0D7F]/, "ml-IN"],
+    [/[\u0600-\u06FF]/, "ar-SA"], [/[\u3040-\u30FF\u4E00-\u9FFF]/, "ja-JP"],
+  ];
+  for (const [re, code] of ranges) if (re.test(t)) return code;
+  return "en-IN";
+}
+
+/* ---------- State & storage ---------- */
+const DEFAULTS = { worker: "", token: "", lang: "auto", style: "deep", voice: "", rate: 0.95, pitch: 0.75, search: true, speakOn: true, continuous: false, micOn: true };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("era." + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("era." + k, JSON.stringify(v)); } catch {} },
+};
+let S = Object.assign({}, DEFAULTS, store.get("settings", {}));
+let history = store.get("history", []); // [{role:'user'|'model', text, t}]
+const saveSettings = () => store.set("settings", S);
+const saveHistory = () => store.set("history", history.slice(-200));
+
+let mode = "idle"; // idle | listening | thinking | speaking
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status"), replyEl = $("reply"), micBtn = $("mic");
+
+function setMode(m) {
+  mode = m;
+  const labels = { idle: "", listening: "Listening", thinking: "Thinking", speaking: "Speaking" };
+  statusEl.textContent = labels[m];
+  micBtn.classList.toggle("on", m === "listening");
+  micBtn.setAttribute("aria-label", m === "speaking" ? "Stop speaking and listen" : m === "listening" ? "Stop listening" : "Speak");
+}
+
+/* ---------- Output helpers ---------- */
+function showReply({ you, text, error, sources, live }) {
+  replyEl.textContent = "";
+  if (you) { const d = document.createElement("div"); d.className = "you"; d.textContent = you; replyEl.appendChild(d); }
+  const b = document.createElement("div");
+  if (error) b.className = "err";
+  b.textContent = text;
+  replyEl.appendChild(b);
+  if (live && sources && sources.length) {
+    const s = document.createElement("div"); s.className = "src";
+    s.append("From live search: ");
+    sources.forEach((x, i) => {
+      const a = document.createElement("a"); a.href = x.uri; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = x.title;
+      s.append(a); if (i < sources.length - 1) s.append(", ");
+    });
+    replyEl.appendChild(s);
+  }
+  replyEl.scrollTop = 0;
+}
+
+/* ---------- Speech output ---------- */
+const synth = window.speechSynthesis;
+let voices = [];
+function loadVoices() { voices = synth ? synth.getVoices() : []; fillVoiceList(); }
+if (synth) { synth.onvoiceschanged = loadVoices; }
+
+function activeTtsLang(textForAuto) {
+  const l = langById(S.lang);
+  return l.tts || detectTtsLang(textForAuto || "");
+}
+function pickVoice(lang) {
+  const base = lang.split("-")[0].toLowerCase();
+  const pool = voices.filter((v) => v.lang.toLowerCase().replace("_", "-").startsWith(base));
+  if (S.voice) { const chosen = pool.find((v) => v.voiceURI === S.voice); if (chosen) return chosen; }
+  const exact = pool.filter((v) => v.lang.toLowerCase().replace("_", "-") === lang.toLowerCase());
+  return (exact[0] || pool[0]) || null;
+}
+// The name is written E.R.A. but must be spoken as the word "Era", not letter by letter.
+function cleanForSpeech(t, lang) {
+  const spoken = /^(hi|mr|ne|sa)/i.test(lang || "") ? "\u0908\u0930\u093E" : "Era"; // ईरा for Devanagari voices
+  return t.replace(/\bE\.?\s?R\.?\s?A\.?(?![a-z])/g, spoken).replace(/[*_#`>~|]/g, "").replace(/https?:\/\/\S+/g, "").replace(/\s{2,}/g, " ").trim();
+}
+function speak(text, { onend } = {}) {
+  if (!synth) { onend && onend(); return; }
+  synth.cancel();
+  const lang = activeTtsLang(text);
+  const u = new SpeechSynthesisUtterance(cleanForSpeech(text, lang));
+  u.lang = lang;
+  const v = pickVoice(lang);
+  if (v) u.voice = v;
+  u.rate = S.rate; u.pitch = S.pitch;
+  u.onstart = () => setMode("speaking");
+  u.onboundary = () => { pulseKick = 1; };
+  u.onend = () => { if (mode === "speaking") setMode("idle"); onend && onend(); };
+  u.onerror = () => { if (mode === "speaking") setMode("idle"); onend && onend(); };
+  synth.speak(u);
+}
+function stopSpeaking() { if (synth) synth.cancel(); if (mode === "speaking") setMode("idle"); }
+
+/* ---------- Speech input ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+let heard = "";
+
+function startListening() {
+  if (!S.micOn) { showReply({ text: "The microphone is turned off in Settings.", error: true }); return; }
+  if (!SR) { showReply({ text: "Speech recognition is not available in this browser. Open E.R.A. in Chrome on Android, or type your message.", error: true }); return; }
+  if (!navigator.onLine) { showReply({ text: "Speech recognition needs an internet connection in this version. Type your message or reconnect.", error: true }); return; }
+  stopSpeaking();
+  rec = new SR();
+  rec.lang = langById(S.lang).stt;
+  rec.interimResults = true;
+  rec.continuous = false;
+  heard = "";
+  let failed = false;
+  rec.onstart = () => setMode("listening");
+  rec.onresult = (e) => {
+    let t = "";
+    for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+    heard = t;
+    $("text").value = t;
+  };
+  rec.onerror = (e) => {
+    failed = true;
+    const msgs = {
+      "not-allowed": "Microphone permission is blocked. Allow it from the lock icon in the address bar, or in Android Settings, Apps, Chrome, Permissions.",
+      "service-not-allowed": "Speech recognition is blocked on this device.",
+      "no-speech": "I did not hear anything. Tap the mic and try again.",
+      "audio-capture": "No microphone was found.",
+      "network": "Speech recognition could not reach its service. Check your internet connection.",
+      "language-not-supported": "This phone cannot recognise " + langById(S.lang).label + " speech. Type your message or pick another language.",
+    };
+    setMode("idle");
+    showReply({ text: msgs[e.error] || "Speech recognition failed (" + e.error + ").", error: true });
+  };
+  rec.onend = () => {
+    if (failed) return;
+    const t = heard.trim();
+    $("text").value = "";
+    if (t) ask(t); else setMode("idle");
+  };
+  try { rec.start(); } catch { setMode("idle"); }
+}
+function stopListening() { if (rec) { try { rec.stop(); } catch {} } }
+
+/* ---------- AI call ---------- */
+let inflight = null;
+async function ask(text) {
+  text = text.trim();
+  if (!text) return;
+  stopSpeaking();
+  if (inflight) inflight.abort();
+
+  if (!S.worker) { showReply({ you: text, text: "No backend is set up yet. Open Settings and enter your Worker address.", error: true }); setMode("idle"); return; }
+  if (!navigator.onLine) { showReply({ you: text, text: "You are offline. The AI needs internet in this version, so I cannot answer or verify anything right now.", error: true }); setMode("idle"); return; }
+
+  history.push({ role: "user", text, t: Date.now() });
+  saveHistory();
+  showReply({ you: text, text: "" });
+  setMode("thinking");
+
+  const ctrl = new AbortController();
+  inflight = ctrl;
+  const timer = setTimeout(() => ctrl.abort("timeout"), 45000);
+  try {
+    const res = await fetch(S.worker.replace(/\/+$/, "") + "/chat", {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", "X-ERA-Token": S.token },
+      body: JSON.stringify({
+        messages: history.slice(-14).map((m) => ({ role: m.role, text: m.text })),
+        language: langById(S.lang).name,
+        search: S.search,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const why = { unauthorized: "The access token is wrong. Check it in Settings.", rate_limited: "The free AI quota is used up for now. Try again in a minute.", no_key: "The server has no AI key. Add GEMINI_API_KEY in Cloudflare." };
+      throw new Error(why[data.error] || data.message || "Server error " + res.status);
+    }
+    history.push({ role: "model", text: data.text, t: Date.now() });
+    saveHistory();
+    showReply({ you: text, text: data.text, sources: data.sources, live: data.live });
+    setMode("idle");
+    if (S.speakOn) speak(data.text, { onend: () => { if (S.continuous && mode === "idle") startListening(); } });
+    else if (S.continuous) startListening();
+  } catch (e) {
+    history.pop(); // the unanswered question should not pollute the context
+    saveHistory();
+    setMode("idle");
+    if (ctrl.signal.aborted && ctrl.signal.reason !== "timeout") return; // user interrupted
+    const msg = ctrl.signal.reason === "timeout" ? "The AI took too long to answer. Try again."
+      : e instanceof TypeError ? "Could not reach the backend. Check the address in Settings and your internet connection."
+      : e.message;
+    showReply({ you: text, text: "Error: " + msg, error: true });
+  } finally {
+    clearTimeout(timer);
+    if (inflight === ctrl) inflight = null;
+  }
+}
+
+/* ---------- Controls ---------- */
+$("form").addEventListener("submit", (e) => { e.preventDefault(); const v = $("text").value; $("text").value = ""; ask(v); });
+micBtn.addEventListener("click", () => {
+  if (mode === "listening") stopListening();
+  else if (mode === "thinking") { if (inflight) inflight.abort(); setMode("idle"); }
+  else startListening(); // also interrupts speech
+});
+$("pulsar").addEventListener("click", () => { if (mode === "speaking") stopSpeaking(); else if (mode === "idle") startListening(); });
+
+function openSheet(id) { $(id).classList.add("open"); }
+document.querySelectorAll(".sheet").forEach((s) => {
+  s.addEventListener("click", (e) => { if (e.target === s || e.target.closest("[data-close]")) s.classList.remove("open"); });
+});
+$("btnSettings").onclick = () => openSheet("sheetSettings");
+$("btnHistory").onclick = () => { renderHistory(); openSheet("sheetHistory"); };
+
+function renderHistory() {
+  const box = $("histList"); box.textContent = "";
+  if (!history.length) { box.textContent = "No conversations yet."; box.style.color = "var(--ink-dim)"; return; }
+  history.slice().reverse().forEach((m) => {
+    const d = document.createElement("div"); d.className = "hist-item";
+    const b = document.createElement("b"); b.textContent = (m.role === "user" ? "You" : "E.R.A.") + " · " + new Date(m.t).toLocaleString();
+    d.append(b, document.createTextNode(m.text));
+    box.appendChild(d);
+  });
+}
+
+/* ---------- Settings UI ---------- */
+function fillVoiceList() {
+  const sel = $("voice"); if (!sel) return;
+  const lang = activeTtsLang("");
+  const base = lang.split("-")[0].toLowerCase();
+  const pool = voices.filter((v) => v.lang.toLowerCase().replace("_", "-").startsWith(base));
+  sel.textContent = "";
+  const o0 = document.createElement("option"); o0.value = ""; o0.textContent = pool.length ? "Default for this language" : "No voice installed for this language"; sel.appendChild(o0);
+  pool.forEach((v) => { const o = document.createElement("option"); o.value = v.voiceURI; o.textContent = v.name + " (" + v.lang + ")"; sel.appendChild(o); });
+  sel.value = S.voice && pool.some((v) => v.voiceURI === S.voice) ? S.voice : "";
+}
+function syncSettingsUI() {
+  $("worker").value = S.worker; $("token").value = S.token;
+  const lsel = $("lang"); if (!lsel.options.length) LANGS.forEach((l) => { const o = document.createElement("option"); o.value = l.id; o.textContent = l.label; lsel.appendChild(o); });
+  lsel.value = S.lang;
+  $("langHint").textContent = langById(S.lang).note || "";
+  $("langChip").textContent = langById(S.lang).label;
+  document.querySelectorAll("#style button").forEach((b) => b.classList.toggle("sel", b.dataset.v === S.style));
+  $("rate").value = S.rate; $("rateVal").textContent = S.rate.toFixed(2);
+  $("pitch").value = S.pitch; $("pitchVal").textContent = S.pitch.toFixed(2);
+  $("search").checked = S.search; $("speakOn").checked = S.speakOn; $("continuous").checked = S.continuous; $("micOn").checked = S.micOn;
+  micBtn.classList.toggle("muted", !S.micOn);
+  fillVoiceList();
+}
+function bind(id, key, parse = (v) => v) { $(id).addEventListener("input", (e) => { S[key] = parse(e.target.type === "checkbox" ? e.target.checked : e.target.value); saveSettings(); syncSettingsUI(); }); }
+bind("worker", "worker", (v) => v.trim()); bind("token", "token", (v) => v.trim());
+bind("rate", "rate", parseFloat); bind("pitch", "pitch", parseFloat);
+bind("search", "search"); bind("speakOn", "speakOn"); bind("continuous", "continuous"); bind("micOn", "micOn");
+bind("voice", "voice");
+$("lang").addEventListener("change", (e) => { S.lang = e.target.value; S.voice = ""; saveSettings(); syncSettingsUI(); });
+document.querySelectorAll("#style button").forEach((b) => b.addEventListener("click", () => {
+  S.style = b.dataset.v;
+  if (S.style === "deep") { S.pitch = 0.75; S.rate = 0.95; } else { S.pitch = 1; S.rate = 1; }
+  saveSettings(); syncSettingsUI();
+}));
+$("preview").onclick = () => {
+  const l = langById(S.lang);
+  const samples = { hi: "Namaste Sir, main Era hoon.", en: "Good day, Sir. I am Era, ready to assist you." };
+  const sample = (S.lang === "hi" || S.lang === "raj" || S.lang === "har" || S.lang === "sa")
+    ? "नमस्ते सर, मैं ईरा हूँ। मैं आपकी सहायता के लिए तैयार हूँ।"
+    : S.lang === "auto" || S.lang === "en" ? samples.en : "Sir, Era.";
+  speak(sample);
+};
+$("clear").onclick = () => { if (confirm("Delete all conversation history on this phone?")) { history = []; saveHistory(); replyEl.textContent = ""; renderHistory(); } };
+$("test").onclick = async () => {
+  const out = $("testOut"); out.textContent = "Testing...";
+  if (!S.worker) { out.textContent = "Enter the Worker address first."; return; }
+  try {
+    const r = await fetch(S.worker.replace(/\/+$/, "") + "/health");
+    const d = await r.json();
+    out.textContent = d.ok ? (d.hasKey ? "Backend reachable. AI key is set (model: " + d.model + ")." : "Backend reachable, but GEMINI_API_KEY is missing.") : "Unexpected response from backend.";
+  } catch { out.textContent = "Could not reach the backend. Check the address and your connection."; }
+};
+
+/* ---------- Pulsar ---------- */
+const cv = $("pulsar"), ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1, pulseKick = 0, level = 0, speed = 1, spread = 1;
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const particles = Array.from({ length: 110 }, () => ({ r: rnd(0.28, 1.0), a: rnd(0, Math.PI * 2), s: rnd(0.04, 0.22) * (Math.random() < .5 ? -1 : 1), z: rnd(0.2, 1), tilt: rnd(-0.5, 0.5) }));
+const rings = [
+  { r: 0.36, tilt: 0.0, sq: 0.28, s: 0.35, dots: 1 },
+  { r: 0.55, tilt: 0.6, sq: 0.34, s: -0.22, dots: 2 },
+  { r: 0.78, tilt: -0.5, sq: 0.22, s: 0.14, dots: 1 },
+];
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  const r = cv.getBoundingClientRect();
+  W = r.width; H = r.height;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+addEventListener("resize", resize);
+new ResizeObserver(resize).observe(cv);
+
+let t0 = performance.now(), ph = 0;
+function frame(now) {
+  const dt = Math.min((now - t0) / 1000, 0.05); t0 = now;
+  const time = now / 1000;
+  // targets per state
+  let tLevel = 0.15, tSpeed = 1, tSpread = 1;
+  if (mode === "listening") { tLevel = 0.45 + 0.2 * Math.sin(time * 2.2); tSpeed = 0.7; tSpread = 0.86 + 0.06 * Math.sin(time * 2.2); }
+  else if (mode === "thinking") { tLevel = 0.55; tSpeed = 3.2; tSpread = 0.72; }
+  else if (mode === "speaking") { pulseKick *= 0.9; tLevel = 0.5 + 0.35 * pulseKick + 0.12 * Math.sin(time * 7); tSpeed = 1.4; tSpread = 1.04 + 0.05 * pulseKick; }
+  else { tLevel = 0.15 + 0.05 * Math.sin(time * 0.9); }
+  const k = 1 - Math.pow(0.002, dt);
+  level += (tLevel - level) * k; speed += (tSpeed - speed) * k; spread += (tSpread - spread) * k;
+  ph += dt * speed * (reduceMotion ? 0.2 : 1);
+
+  ctx.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.46 * spread;
+
+  // jets (the pulsar beams), gently precessing
+  const jetA = -0.38 + 0.06 * Math.sin(ph * 0.5);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(jetA);
+  for (const dir of [-1, 1]) {
+    const g = ctx.createLinearGradient(0, 0, 0, dir * R * 1.25);
+    g.addColorStop(0, `rgba(235,235,235,${0.5 * (0.5 + level)})`);
+    g.addColorStop(1, "rgba(235,235,235,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(-1.2, 0); ctx.lineTo(1.2, 0); ctx.lineTo(0.5, dir * R * 1.25); ctx.lineTo(-0.5, dir * R * 1.25); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // orbital rings
+  rings.forEach((rg, i) => {
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(rg.tilt + ph * rg.s * 0.35);
+    const rx = R * rg.r * 1.25, ry = rx * (rg.sq + 0.05 * level);
+    ctx.strokeStyle = `rgba(200,200,200,${0.16 + 0.14 * level - i * 0.02})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+    for (let d = 0; d < rg.dots; d++) {
+      const a = ph * rg.s * 1.6 + d * Math.PI + i;
+      ctx.fillStyle = `rgba(255,255,255,${0.55 + 0.3 * level})`;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * rx, Math.sin(a) * ry, 1.8, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // particles
+  for (const p of particles) {
+    p.a += p.s * dt * speed;
+    const rr = R * p.r * 1.2 * (mode === "thinking" ? 0.85 + 0.15 * Math.sin(time * 3 + p.a * 3) : 1);
+    const x = cx + Math.cos(p.a) * rr, y = cy + Math.sin(p.a) * rr * (0.35 + p.z * 0.4) * Math.cos(p.tilt) + Math.sin(p.a) * 0;
+    ctx.fillStyle = `rgba(220,220,220,${0.08 + 0.35 * p.z * (0.4 + level)})`;
+    ctx.fillRect(x, y, 1.3 * p.z + 0.4, 1.3 * p.z + 0.4);
+  }
+
+  // core glow
+  const cr = R * (0.16 + 0.1 * level);
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr * 5);
+  glow.addColorStop(0, `rgba(255,255,255,${0.5 + 0.3 * level})`);
+  glow.addColorStop(0.2, `rgba(255,255,255,${0.14 + 0.1 * level})`);
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, cr * 5, 0, Math.PI * 2); ctx.fill();
+  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr);
+  core.addColorStop(0, "rgba(255,255,255,1)"); core.addColorStop(0.55, "rgba(255,255,255,.9)"); core.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI * 2); ctx.fill();
+
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Boot ---------- */
+syncSettingsUI(); loadVoices(); resize();
+requestAnimationFrame(frame);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+if (!S.worker) showReply({ text: "Open Settings and enter your backend address to begin. The setup guide explains each step." });
+</script>
+</body>
+</html>
